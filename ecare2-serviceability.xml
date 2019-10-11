@@ -1,0 +1,1201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:soapui-project id="fe7119bd-0bb2-4629-922e-bd879be2ffe1" activeEnvironment="Default" name="Serviceability" resourceRoot="" soapui-version="5.3.0" abortOnError="false" runType="SEQUENTIAL" xmlns:con="http://eviware.com/soapui/config"><con:settings/><con:testSuite id="f8bacb2b-d9ea-4e13-843a-e7f20b1a051d" name="TestDataCreation"><con:settings/><con:runType>SEQUENTIAL</con:runType><con:testCase id="2dbf4634-77e3-4ff5-b91f-f33405b843e5" failOnError="false" failTestCaseOnErrors="true" keepSession="false" maxResults="0" name="TestDataCreation" searchProperties="true"><con:settings/><con:testStep type="groovy" name="getStartTime" id="d268ebc4-0cc7-48e8-961f-8843344f220d"><con:settings/><con:config><script>import java.text.SimpleDateFormat
+def GroovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+def myTestCase = context.testCase
+propTestStep = myTestCase.getTestStepByName("Property - Looper")
+def startDate = new Date()
+sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss")
+startDate = sdf.format(startDate)
+def sDate = System.currentTimeMillis()
+log.info startDate
+propTestStep.setPropertyValue("startDate", startDate.toString())</script></con:config></con:testStep><con:testStep type="groovy" name="getJenkinsVariables" id="3b448e69-f95f-4511-be72-573e0969fe79"><con:settings/><con:config><script>import groovy.sql.Sql
+import java.util.*
+import java.lang.Object
+import hudson.model.*
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.*
+import org.apache.poi.hssf.usermodel.*
+import org.apache.poi.xssf.usermodel.*
+import org.apache.poi.ss.util.*
+import java.text.SimpleDateFormat
+import java.time.*
+sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss") 
+def GroovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+def myTestCase = context.testCase 
+
+
+propTestStep = myTestCase.getTestStepByName("Property - Looper")
+
+//Logic for reading from Library Start
+library = testRunner.testCase.testSuite.project.testSuites["ScriptLibrary"]
+module = library.testCases["LibraryForReuse"].testSteps["Connections"]
+module.run(testRunner, context)  
+def connections = context.connections
+module1 = library.testCases["LibraryForReuse"].testSteps["Report"]
+module1.run(testRunner, context)  
+def report = context.report;
+//Logic for reading from Library End
+
+//Logic for getting varaibles from Jenkins Start
+module = library.testCases["LibraryForReuse"].testSteps["MapSite"]
+module.run(testRunner, context)
+def site_map = context.site
+
+def scenario =System.getProperty("SCENARIO");
+def jobName =System.getProperty("APP_NAME");
+def jobId =System.getProperty("JenkinsJobID");
+def requestor =System.getProperty("userEmail");
+def phoneNo =null
+
+startDate = propTestStep.getPropertyValue("startDate")
+
+log.info startDate
+scenario = scenario//[0..-5]
+
+def counter = "0"
+def successCount = "0"
+def failureCount = "0"
+propTestStep.setPropertyValue("Counter", counter)
+propTestStep.setPropertyValue("scenario", scenario)
+propTestStep.setPropertyValue("jobName", jobName)
+propTestStep.setPropertyValue("jobId", jobId)
+propTestStep.setPropertyValue("requestor", requestor)
+propTestStep.setPropertyValue("successCount", successCount)
+propTestStep.setPropertyValue("failureCount", failureCount)
+//integrate with jenkins start
+//integrate with jenkins stop
+//Reporting starts here....
+def reportingId = report.reportAtBegining(jobName,jobId);
+if(reportingId==null||reportingId ==''||reportingId=='null'||reportingId==[null]){
+	log.info "Reporting ID is null";
+	def reportStatus = report.insertIfReportIdNull(jobName,jobId,scenario,requestor,successCount,startDate,failureCount);
+	if(reportStatus==true){
+		log.info "Report inserted successfully";
+	}else{
+		log.info "Report insertion failed";
+	}
+}else{
+	log.info "Reporting ID is: "+reportingId;
+	log.info "Reporting ID not null";
+	successCount = report.getSuccessCount(jobName,jobId);
+	failureCount = report.getFailureCount(jobName,jobId);
+}
+log.info "Success count is: "+successCount
+log.info "Failure count is: "+failureCount
+log.info "Reporting ID is: "+reportingId
+
+
+
+//Reporting ends here.......
+
+if(successCount==null||successCount ==''||successCount=='null'||successCount==[null]){
+	//do nothing
+}
+else{
+	propTestStep.setPropertyValue("successCount", successCount.toString())
+}
+if(failureCount==null||failureCount ==''||failureCount=='null'||failureCount==[null]){
+	//do nothing
+}
+else{
+	propTestStep.setPropertyValue("failureCount", failureCount.toString())
+}
+</script></con:config></con:testStep><con:testStep type="groovy" name="DataDriver" id="af9df834-8484-424e-a08a-9b8fcaf16010"><con:settings/><con:config><script>import com.eviware.soapui.support.XmlHolder
+import jxl.*
+import jxl.write.*
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.Iterator;
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.*
+import org.apache.poi.hssf.usermodel.*
+import org.apache.poi.xssf.usermodel.*
+import org.apache.poi.ss.util.*
+library = testRunner.testCase.testSuite.project.testSuites["ScriptLibrary"]
+module = library.testCases["LibraryForReuse"].testSteps["TCLib"]
+module.run(testRunner, context)  
+def tclib = context.tclib
+def name = "ecare2-serviceability"
+def path = null;
+def execute(name) {
+		log.info "inside"
+		def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+		def myTestCase = this.context.testCase
+		log.info (myTestCase)
+		def DataPath = new File ("C:\\SoapUIProjects\\"+name+"")
+		def folder = new File ("D:\\SoapUIProjects\\"+name+"")	
+		//Input file
+		if( !folder.exists()) {
+			path = "Input.xlsx"
+			log.info "Relative Path"
+			log.info (path)
+			return (path)
+		}
+		else {
+			path = "D:\\SoapUIProjects\\"+name+"\\Input.xlsx";
+			log.info ("System Path")
+			log.info (path)
+			return (path)
+		}
+	}
+
+path = execute(name)
+log.info ("Path is "+path)
+
+def myTestCase = context.testCase 
+log.info (myTestCase)
+def counter, next, previous, size
+log.info (counter)
+log.info (previous)
+log.info (size)
+
+//Workbook from path
+FileInputStream fis =  new FileInputStream(new File(path))
+XSSFWorkbook workbook1 = new XSSFWorkbook(fis) //file containing the data
+ 
+XSSFSheet sheet1 = workbook1.getSheetAt(0) //get the trouble call work order info
+
+size= sheet1.getPhysicalNumberOfRows().toInteger() //get the number of rows, each row is a data set
+ DataFormatter df = new DataFormatter()
+log.info("Size Is: " + size)
+ 
+propTestStep = myTestCase.getTestStepByName("Property - Looper") // get the Property TestStep object
+
+propTestStep = myTestCase.getTestStepByName ("Property - Looper") // get the Property TestStep object
+
+propTestStep.setPropertyValue("Total", size.toString())
+
+counter = propTestStep.getPropertyValue("Count").toString()
+log.info (counter)
+counter = counter.toInteger()
+log.info (counter)
+
+next = (counter > size-2? 1: counter+1)
+
+ Row row = sheet1.getRow(counter)
+// OBTAINING THE DATA for create trouble call work order
+ 
+XSSFCell a = row.getCell(0) //obtains site code
+XSSFCell b = row.getCell(1) // obtains AccountNumber
+workbook1.close() //close the file
+ 
+// Read data from createHouseMasterRecord Sheet
+ 
+String site =  df.formatCellValue(a)
+//site = (site.substring(0, site.length() - 3))
+log.info site
+String accountNumber = df.formatCellValue(b)
+//String houseNumber = df.formatCellValue(b)
+
+String houseNumber = accountNumber//(accountNumber.substring(0, accountNumber.length() - 2))
+
+// Save the value to a property from createHouseMasterRecord Sheet
+propTestStep.setPropertyValue("Site", site) //the value is saved in the property
+propTestStep.setPropertyValue("AccountNumber", accountNumber) //the value is saved in the property
+propTestStep.setPropertyValue("HouseNumber", houseNumber) //the value is saved in the property
+propTestStep.setPropertyValue("Count", next.toString()) //increase Count value
+
+next++ //increase next value
+ 
+propTestStep.setPropertyValue("Next", next.toString()) //set Next value on the properties step
+ 
+//Decide if the test has to be run again or not
+ 
+if (counter == size-1)
+ 
+{
+ 
+propTestStep.setPropertyValue("StopLoop", "T")
+ 
+log.info "Setting the stoploop property now..."
+ 
+}
+ 
+else if (counter==0)
+ 
+{
+ 
+def runner = new com.eviware.soapui.impl.wsdl.testcase.WsdlTestCaseRunner(testRunner.testCase, null)
+ 
+propTestStep.setPropertyValue("StopLoop", "F")
+ 
+}
+ 
+else
+ 
+{
+ 
+propTestStep.setPropertyValue("StopLoop", "F")
+ 
+}
+</script></con:config></con:testStep><con:testStep type="properties" name="Property - Looper" id="6ab99f1d-1308-4117-ba2e-2d9632b94091"><con:settings/><con:config xsi:type="con:PropertiesStep" saveFirst="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:properties><con:property><con:name>Count</con:name><con:value>4</con:value></con:property><con:property><con:name>Total</con:name><con:value>30</con:value></con:property><con:property><con:name>Site</con:name><con:value>KAN</con:value></con:property><con:property><con:name>AccountNumber</con:name><con:value>873103</con:value></con:property><con:property><con:name>HouseNumber</con:name><con:value>873103</con:value></con:property><con:property><con:name>Next</con:name><con:value>5</con:value></con:property><con:property><con:name>StopLoop</con:name><con:value>F</con:value></con:property><con:property><con:name>ServiceabilityResult</con:name><con:value>True</con:value></con:property><con:property><con:name>PreServiceability</con:name><con:value>{SITEID=580, HOUSENUMBER=873103, HOUSERESIDENTNUMBER=0, FRANCHISENUMBER=442, ADDRESS1=2621 TDS OrderConfirm Accounts, ADDRESS2=ANDOVER, KS 67002-5232, CITY=ANDOVER, STATE=KS, ZIP5=67002, ZIP4=5232, PREDIR=, STREETNUMBER=2621, STREETNAME=TDS OrderConfirm Accounts, STREETTYPE=, POSTDIR=, APT=APT 103, DWELLINGTYPE=H, BILLTYPECODE=S, COMPANYNUMBER=10, DIVISIONNUMBER=1, HOUSEADDRESSABLE=Y, HOUSESTATUS=1, AUDITCHECKCODE= , LATITUDE=36.329895, LONGITUDE=-93.43735, UNITTYPE=Apt, UNIT=103, CLEANSEFAULTCODE=, APARTMENT=103, BUILDING= , STREETNAMESOUNDEX=}</con:value></con:property><con:property><con:name>startDate</con:name><con:value>09/24/2019 21:11:46</con:value></con:property><con:property><con:name>Counter</con:name><con:value>0</con:value></con:property><con:property><con:name>scenario</con:name><con:value xsi:nil="true"/></con:property><con:property><con:name>jobName</con:name><con:value xsi:nil="true"/></con:property><con:property><con:name>jobId</con:name><con:value xsi:nil="true"/></con:property><con:property><con:name>requestor</con:name><con:value xsi:nil="true"/></con:property><con:property><con:name>successCount</con:name><con:value>29</con:value></con:property><con:property><con:name>failureCount</con:name><con:value>10</con:value></con:property></con:properties></con:config></con:testStep><con:testStep type="groovy" name="DisableFailOnError" id="0e6c5f4f-c6b9-466c-b00e-67fded509e6d"><con:settings/><con:config><script>testRunner.testCase.with {
+    // Store current TestCase options in (temporary) TestCase properties.
+    setPropertyValue('_failOnError', failOnError.toString())
+    setPropertyValue('_failTestCaseOnErrors', failTestCaseOnErrors.toString())
+    log.debug "Saved FailOnError behavior: ${failOnError}, ${failTestCaseOnErrors}."
+
+    // Allow following TestSteps to fail without aborting the TestCase immediately.
+    setFailOnError(false)
+    setFailTestCaseOnErrors(true)
+    log.info "Set FailOnError behavior: ${failOnError}, ${failTestCaseOnErrors}."
+}</script></con:config></con:testStep><con:testStep type="groovy" name="ServiceabilityInsert" id="647c393b-b0c7-45f3-b42e-ec0a305245c3"><con:settings/><con:config><script><![CDATA[import groovy.sql.Sql
+import oracle.jdbc.*
+def GroovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+com.eviware.soapui.support.GroovyUtils.registerJdbcDriver("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+def myTestCase = context.testCase
+propTestStep = myTestCase.getTestStepByName("Property - Looper")
+housenumber = propTestStep.getPropertyValue("HouseNumber")
+site = propTestStep.getPropertyValue("Site")
+log.info housenumber
+log.info site
+
+def sql = Sql.newInstance("jdbc:oracle:thin:wes_wm_soa/wes_wm_soa@(DESCRIPTION_LIST=(LOAD_BALANCE=off)(FAILOVER=on)(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke1.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD)))(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke2.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD))))")
+def result  = sql.firstRow("select * from "+site+"_house_master where house_number = '"+housenumber+"'")
+log.info result
+sql.close()
+def unittype
+def unit
+def row
+def streetname 
+if (result == null) {
+log.info "Result is null"
+propTestStep.setPropertyValue("ServiceabilityResult", "Result is null")
+}
+else
+{
+String str= result.street;
+str = str.trim()
+String streettype
+int index=str.lastIndexOf(' ');
+log.info index
+if (index >=0){
+streetname = (str.substring(0,index));
+streetname = streetname.trim()
+log.info streetname
+streettype =  (str.substring(str.lastIndexOf(" ") + 1))
+streettype = streettype.toUpperCase()
+streettype = streettype.trim()
+log.info streettype
+}
+else {
+	streetname = str
+}
+ArrayList myArray = ["ALY", "ANX", "ARC", "AVE", "BYU", "BCH", "BND", "BLF", "BLFS", "BTM", "BLVD", "BR", "BRG", "BRK", "BRKS", "BG", "BGS", "BYP", "CP", "CYN", "CPE", "CSWY", "CTR", "CTRS", "CIR", "CIRS", 
+"CLF", "CLFS", "CLB", "CMN", "CMNS", "COR", "CORS", "CRSE", "CT", "CTS", "CV", "CVS", "CRK", "CRES", "CRST", "XING", "XRD", "XRDS", "CURV", "DL", "DM", "DV", "DR", "DRS", "EST", "ESTS", "EXPY", "EXT", "EXTS", 
+"FALL", "FLS", "FRY", "FLD", "FLDS", "FLT", "FLTS", "FRD", "FRDS", "FRST", "FRG", "FRGS", "FRK", "FRKS", "FT", "FWY", "GDN", "GDNS", "GTWY", "GLN", "GLNS", "GRN", "GRNS", "GRV", "GRVS", "HBR", "HBRS", "HVN", 
+"HTS", "HWY", "HL", "HLS", "HOLW", "INLT", "IS", "ISS", "ISLE", "JCT", "JCTS", "KY", "KYS", "KNL", "KNLS", "LK", "LKS", "LAND", "LNDG", "LN", "LGT", "LGTS", "LF", "LCK", "LCKS", "LDG", "LOOP", "MALL", "MNR", "MNRS", 
+"MDW", "MDWS", "MEWS", "ML", "MLS", "MSN", "MTWY", "MT", "MTN", "MTNS", "NCK", "ORCH", "OVAL", "OPAS", "PARK", "PKWY", "PASS", "PSGE", "PATH", "PIKE", "PNE", "PNES", "PL", "PLN", "PLNS", "PLZ", "PT", "PTS", 
+"PRT", "PRTS", "PR", "RADL", "RAMP", "RNCH", "RPD", "RPDS", "RST", "RDG", "RDGS", "RIV", "RD", "RDS", "RTE", "ROW", "RUE", "RUN", "SHL", "SHLS", "SHR", "SHRS", "SKWY", "SPG", "SPGS", "SPUR", "SQ", "SQS", "STA",
+"STRA", "STRM", "ST", "STS", "SMT", "TER", "TRWY", "TRCE", "TRAK", "TRFY", "TRL", "TRLR", "TUNL", "TPKE", "UPAS", "UN", "UNS", "VLY", "VLYS", "VIA", "VW", "VWS", "VLG", "VLGS", "VL", "VIS", "WALK", "WALL", 
+"WAY", "WAYS", "WL", "WLS"]
+                                                                                 
+boolean isStrtypeExists =  myArray.contains(streettype)
+log.info "Street type exists is "+isStrtypeExists+""
+
+boolean isBuilding = result.address_line_1.toLowerCase().contains("bldg")
+log.info "Building is "+isBuilding+""
+log.info "Building is "+result.Building+""
+String Apartment = (result.Apartment).trim()
+log.info "Apartment is "+Apartment+""
+
+boolean isAptExists
+if(result.building != " " || result.apartment !=" " ){
+	 isAptExists = true
+}
+else {
+	 isAptExists = false
+}
+log.info "Apartment exists is "+isAptExists+""
+
+if (result.building == " " && result.apartment ==" ")
+{
+	unittype = ""
+	unit = ""
+}
+else if (result.building != " " && result.apartment ==" ")
+{
+	if ((result.building.toLowerCase() == "uppr" || result.building.toLowerCase() == "lowr") && isBuilding == true ){
+		unittype = "BLDG"
+		unit = result.building
+	}
+	else {
+		unittype = ""
+		unit = ""
+	}
+}
+else if (result.building == " " && result.apartment !=" "){
+		unittype = "Apt"
+		unit = (result.apartment).trim()
+}
+else if (result.building != " " && result.apartment !=" "){
+		unittype = result.building
+		unit = (result.apartment).trim()
+}
+else {
+	log.info "Exiting as conditions do not match"
+}
+log.info "Unit type is "+unittype+""
+log.info "Unit is "+unit+""
+log.info result.address_line_1
+
+sql =Sql.newInstance("jdbc:sqlserver://catl0db1704\\INTEG;Database=serviceability","TDS_USER","vDm4yd5ULeY","com.microsoft.sqlserver.jdbc.SQLServerDriver")
+log.info "integ"
+def serResult = sql.firstRow("select * from scrubbedallhousemaster where housenumber="+result.house_number+" and siteid="+result.site_id+"")
+log.info serResult
+if (serResult != null){
+propTestStep.setPropertyValue("PreServiceability", serResult.toString())
+}
+else
+{
+propTestStep.setPropertyValue("PreServiceability", "False")	
+}
+
+if (serResult == null) {
+log.info "Entering for inserting data"
+
+if(isStrtypeExists == true && isAptExists == true){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_2+"','"+result.address_line_3+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+streetname+"','"+streettype+"','', '"+result.address_line_1+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == true && isAptExists == false){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_1+"','"+result.address_line_2+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+streetname+"','"+streettype+"','','"+result.apartment+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == false && isAptExists == true){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_2+"','"+result.address_line_3+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+result.street+"','','', '"+result.address_line_1+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == false && isAptExists == false){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_1+"','"+result.address_line_2+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+result.street+"','','','"+result.apartment+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else {
+	log.info "Exiting as the insert conditions do not match"
+}
+}
+else
+{
+log.info "Entering for deleting and inserting data"
+sql.execute("delete from ScrubbedCensusBlockData where housenumber="+result.house_number+" and siteid="+result.site_id+"")	
+sleep(500)
+sql.execute("delete from scrubbedallhousemaster where housenumber="+result.house_number+" and siteid="+result.site_id+"")	
+sleep (500)
+if(isStrtypeExists == true && isAptExists == true){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_2+"','"+result.address_line_3+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+streetname+"','"+streettype+"','','"+result.address_line_1+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == true &&  isAptExists == false){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_1+"','"+result.address_line_2+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+streetname+"','"+streettype+"','','"+result.apartment+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == false && isAptExists == true){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_2+"','"+result.address_line_3+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+result.street+"','','','"+result.address_line_1+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == false && isAptExists == false){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_1+"','"+result.address_line_2+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+result.street+"','','','"+result.apartment+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else {
+	log.info "Exiting as the insert conditions do not match"
+}
+}
+row = sql.firstRow("select * from scrubbedallhousemaster where housenumber="+result.house_number+" and siteid="+result.site_id+"")
+log.info "Closing sql connection"
+sql =Sql.newInstance("jdbc:sqlserver://CATL0DB1703\\QA;Database=serviceability","TDS_USER","apRclY9z3","com.microsoft.sqlserver.jdbc.SQLServerDriver")
+log.info "qa"
+serResult = sql.firstRow("select * from scrubbedallhousemaster where housenumber="+result.house_number+" and siteid="+result.site_id+"")
+if (serResult != null){
+propTestStep.setPropertyValue("PreServiceability", serResult.toString())
+}
+else
+{
+propTestStep.setPropertyValue("PreServiceability", "False")	
+}
+
+if (serResult == null) {
+log.info "Entering for inserting data"
+
+if(isStrtypeExists == true && isAptExists == true){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_2+"','"+result.address_line_3+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+streetname+"','"+streettype+"','', '"+result.address_line_1+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == true && isAptExists == false){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_1+"','"+result.address_line_2+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+streetname+"','"+streettype+"','','"+result.apartment+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == false && isAptExists == true){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_2+"','"+result.address_line_3+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+result.street+"','','', '"+result.address_line_1+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == false && isAptExists == false){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_1+"','"+result.address_line_2+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+result.street+"','','','"+result.apartment+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else {
+	log.info "Exiting as the insert conditions do not match"
+}
+}
+else
+{
+log.info "Entering for deleting and inserting data"
+sql.execute("delete from ScrubbedCensusBlockData where housenumber="+result.house_number+" and siteid="+result.site_id+"")	
+sleep(500)
+sql.execute("delete from scrubbedallhousemaster where housenumber="+result.house_number+" and siteid="+result.site_id+"")	
+sleep (500)
+if(isStrtypeExists == true && isAptExists == true){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_2+"','"+result.address_line_3+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+streetname+"','"+streettype+"','','"+result.address_line_1+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == true &&  isAptExists == false){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_1+"','"+result.address_line_2+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+streetname+"','"+streettype+"','','"+result.apartment+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == false && isAptExists == true){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_2+"','"+result.address_line_3+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+result.street+"','','','"+result.address_line_1+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else if (isStrtypeExists == false && isAptExists == false){
+sql.execute("insert into dbo.ScrubbedAllHouseMaster values ("+result.site_id+", "+housenumber+", "+result.house_resident_number+", "+result.franchise_number+", '"+result.address_line_1+"','"+result.address_line_2+"','"+result.addr_city+"','"+result.addr_state+"','"+result.addr_zip_5+"','"+result.addr_zip_4+"','',"+result.addr_location+",'"+result.street+"','','','"+result.apartment+"','"+result.dwelling_type+"','"+result.bill_type_code+"',"+result.company_number+", "+result.division_number+",'"+result.house_addressable+"','"+result.house_status+"','"+result.audit_check_code+"','"+result.latitude+"','"+result.longitude+"','"+unittype+"','"+unit+"','','"+Apartment+"','"+result.building+"','')") 
+sleep (500)
+}
+else {
+	log.info "Exiting as the insert conditions do not match"
+}
+}
+row = sql.firstRow("select * from scrubbedallhousemaster where housenumber="+result.house_number+" and siteid="+result.site_id+"")
+log.info (row)
+log.info "Closing sql connection"
+sql.close()
+if (row != null) {
+propTestStep.setPropertyValue("ServiceabilityResult", "True")	
+}
+else {
+propTestStep.setPropertyValue("ServiceabilityResult", "False")	
+}
+}
+]]></script></con:config></con:testStep><con:testStep type="groovy" name="Result" id="d894a845-53f1-4c7a-b289-aa9be28af061"><con:settings/><con:config><script>def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+def rowcount
+def runner
+def myTestCase = context.testCase
+import jxl.*
+import jxl.write.*
+import java.io.*
+import org.apache.poi.ss.usermodel.*
+import org.apache.poi.hssf.usermodel.*
+import org.apache.poi.xssf.usermodel.*
+import org.apache.poi.ss.util.*
+import jxl.read.biff.BiffException;
+import java.text.SimpleDateFormat
+import java.time.*
+//import java.awt.Color
+import jxl.format.Colour;
+sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss") 
+library = testRunner.testCase.testSuite.project.testSuites["ScriptLibrary"]
+module1 = library.testCases["LibraryForReuse"].testSteps["Report"]
+module1.run(testRunner, context)  
+def report = context.report;
+propTestStep = myTestCase.getTestStepByName("Property - Looper") // get the Property TestStep
+Site = propTestStep.getPropertyValue("Site")
+AccountNumber = propTestStep.getPropertyValue("AccountNumber")
+ServiceabilityResult = propTestStep.getPropertyValue("ServiceabilityResult")
+PreServiceability = propTestStep.getPropertyValue("PreServiceability")
+successCount = propTestStep.getPropertyValue("successCount").toInteger()
+failureCount = propTestStep.getPropertyValue("failureCount").toInteger()
+jobName = propTestStep.getPropertyValue("jobName") 
+jobId = propTestStep.getPropertyValue("jobId") 
+// Select the path
+def resultfolder = new File("C:\\SoapUIProjects\\ecare2-serviceability\\Result")
+log.info (resultfolder)
+def resultpath = null;
+// If it doesn't exist
+if( !resultfolder.exists() ) {
+  // Use Relative path
+ resultpath = "Result/Result.xls";
+  log.info ("Relative Path")
+  log.info (resultpath)
+}
+else {
+	// Use full path
+resultpath = "C:\\SoapUIProjects\\ecare2-serviceability\\Result\\Result.xls";	
+log.info ("System Path")
+log.info (resultpath)
+}
+
+File fr= new File(resultpath)
+Workbook wk = Workbook.getWorkbook(fr);
+
+WritableWorkbook wr = Workbook.createWorkbook(fr, wk);
+WritableSheet sh= wr.getSheet(0);
+
+def r = sh.getRows(); 
+
+if(Site!=null)
+{
+l=new Label(0,r,Site)
+sh.addCell(l)
+}
+else 
+{
+l=new Label(0,r,"Site not available")
+sh.addCell(l)	
+}
+
+if(AccountNumber!=null)
+{
+l=new Label(1,r,AccountNumber)
+sh.addCell(l)
+}
+else 
+{
+l=new Label(1,r,"Account not available")
+sh.addCell(l)	
+}
+
+if(ServiceabilityResult=="True" )
+{
+l=new Label(2,r,"Test Data created successfully")
+sh.addCell(l)
+	successCount = successCount+1
+	WritableFont font = new WritableFont(WritableFont.ARIAL);
+	WritableCellFormat cellFormat = new WritableCellFormat();
+	font.setColour(Colour.GREEN);
+	cellFormat.setFont(font);
+	WritableCell cell1 = sh.getWritableCell(2, r);
+	cell1.setCellFormat(cellFormat)	
+}
+else{
+l=new Label(2,r,"Test Data creation failed")
+sh.addCell(l)
+	failureCount = failureCount+1
+	WritableFont font = new WritableFont(WritableFont.ARIAL);
+	WritableCellFormat cellFormat = new WritableCellFormat();
+	font.setColour(Colour.RED);
+	cellFormat.setFont(font);
+	WritableCell cell1 = sh.getWritableCell(2, r);
+	cell1.setCellFormat(cellFormat)		
+}
+if(PreServiceability=="False" )
+{
+l=new Label(3,r,"Test Data not in Serviceability priort to insert")
+sh.addCell(l)	
+}
+else{
+l=new Label(3,r,PreServiceability)
+sh.addCell(l)		
+}
+
+wr.write();
+wr.close();
+propTestStep.setPropertyValue("successCount", successCount.toString())
+propTestStep.setPropertyValue("failureCount", failureCount.toString())
+
+//Reporting starts here.....................
+
+boolean reportStatus = report.reportingFromResult(successCount,failureCount,jobName,jobId);
+if(reportStatus==true){
+	//log.info "Reporting done successfully";
+}else{
+	//log.info "Reporting not successfull";
+}
+//Reporting ends here.....................	
+
+ 
+endLoop = propTestStep.getPropertyValue("StopLoop").toString()
+jobName = propTestStep.getPropertyValue("jobName") 
+jobId = propTestStep.getPropertyValue("jobId") 
+successCount = propTestStep.getPropertyValue("successCount") 
+
+ def endDate = new Date()
+endDate = sdf.format(endDate)
+//Reporting starts here.....................
+	reportStatus = report.reportingAtEnd(endDate,jobName,jobId);
+	if(reportStatus==true){
+		//log.info "Reporting done successfully";
+	}else{
+		//log.info "Reporting not successfull";
+	}
+	//Reoprting ends here......................		</script></con:config></con:testStep><con:testStep type="groovy" name="RestoreFailOnError" id="709f009c-0fd8-4789-9b91-1f02b1bafc16"><con:settings/><con:config><script>testRunner.testCase.with{
+    // Use (temporary) TestCase properties to restore initial TestCase options.
+    setFailOnError(getPropertyValue('_failOnError').toBoolean())
+    setFailTestCaseOnErrors(getPropertyValue('_failTestCaseOnErrors').toBoolean())
+    log.info "Restored FailOnError behavior: ${failOnError}, ${failTestCaseOnErrors}."
+
+    // Remove (temporary) TestCase properties.
+    removeProperty('_failOnError')
+    removeProperty('_failTestCaseOnErrors')
+    log.debug "Clean up temporary properties: done."
+}
+</script></con:config></con:testStep><con:testStep type="groovy" name="Loop" id="bb4f8014-6961-4e1f-882a-64bea126656e"><con:settings/><con:config><script>import java.text.SimpleDateFormat
+import java.time.*
+import groovy.sql.Sql
+def myTestCase = context.testCase
+ 
+def runner
+sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss") 
+propTestStep = myTestCase.getTestStepByName("Property - Looper") // get the Property TestStep
+//Logic for reading from Library Start
+library = testRunner.testCase.testSuite.project.testSuites["ScriptLibrary"]
+module = library.testCases["LibraryForReuse"].testSteps["Connections"]
+module.run(testRunner, context)  
+def connections = context.connections
+module1 = library.testCases["LibraryForReuse"].testSteps["Report"]
+module1.run(testRunner, context)  
+def report = context.report;
+//Logic for reading from Library End
+
+endLoop = propTestStep.getPropertyValue("StopLoop").toString()
+scenario = propTestStep.getPropertyValue("scenario") 
+jobName = propTestStep.getPropertyValue("jobName") 
+jobId = propTestStep.getPropertyValue("jobId") 
+requestor = propTestStep.getPropertyValue("requestor") 
+
+propTestStep = myTestCase.getTestStepByName("Property - Looper") // get the Property TestStep
+ 
+endLoop = propTestStep.getPropertyValue("StopLoop").toString()
+ 
+if (endLoop.toString() == "T" || endLoop.toString()=="True" || endLoop.toString()=="true")
+ 
+{
+ 
+log.info ("Exit Groovy Data Source Looper")
+ 
+assert true
+ 
+}
+ 
+else
+ 
+{
+ 
+testRunner.gotoStepByName("DataDriver") //setStartStep
+ 
+}</script></con:config></con:testStep><con:properties><con:property><con:name>_failOnError</con:name><con:value>false</con:value></con:property><con:property><con:name>_failTestCaseOnErrors</con:name><con:value>true</con:value></con:property></con:properties></con:testCase><con:properties/></con:testSuite><con:testSuite id="e4e898b6-7bb2-4a2e-a101-9592c58fab75" name="ScriptLibrary" disabled="true"><con:settings/><con:runType>SEQUENTIAL</con:runType><con:testCase id="66d90976-d4c5-4a98-a2f5-a174672e6f77" failOnError="true" failTestCaseOnErrors="true" keepSession="false" maxResults="0" name="LibraryForReuse" searchProperties="true"><con:settings/><con:testStep type="groovy" name="TCLib" id="1cc681c0-9872-4c47-87f2-a9923382563c"><con:settings/><con:config><script>import com.eviware.soapui.support.XmlHolder
+import groovy.sql.Sql
+import jxl.*
+import jxl.write.*
+import groovy.util.Eval
+
+class TCLib {
+	def log
+	def context
+	def testRunner
+	def TCLib(logIn, contextIn, testRunnerIn) {
+		this.log = logIn
+		this.context = contextIn
+		this.testRunner = testRunnerIn
+	}
+	def execute() {
+		log.info "inside"
+		def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+		def myTestCase = this.context.testCase
+		log.info (myTestCase)
+		def folder = new File ("C:\\SoapUIProjects\\TroubleCall\\Data")
+		def path = null;
+		//Input file
+		if( !folder.exists()) {
+			path = "Data/Input.xls"
+			log.info "Relative Path"
+			log.info (path)
+			return (path)
+		}
+		else {
+			path = "C:\\SoapUIProjects\\TroubleCall\\Data\\Input.xls";
+			log.info ("System Path")
+			log.info (path)
+			return (path)
+		}
+	}
+
+	def tcDataTime() {
+		log.info "Getting Data"
+		def myTestCase = this.context.testCase //myTestCase contains the test case
+		def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+		def response = this.context.expand( '${CreateScheduledTroubleCallWorkOrder#Response}' )
+		def response_holder = groovyUtils.getXmlHolder(response)
+		def created=response_holder.getNodeValue("//Created")
+		def tcworkorder=response_holder.getNodeValue("//CreateScheduledTroubleCallWorkOrderResult")
+		//log.info("House Status is "+housestatus)
+		//log.info "Returning House Number"
+		return (created)
+	}
+
+	def HouseNumberResult(housenumber) {
+		log.info "Querying Database for House Number"
+		//Eval.me(housenumber).toString()
+		def sql = Sql.newInstance("jdbc:oracle:thin:wes_wm_soa/wes_wm_soa@(DESCRIPTION_LIST=(LOAD_BALANCE=off)(FAILOVER=on)(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke1.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD)))(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke2.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD))))")
+		/*
+		 def result = sql.firstRow("select count (*) as cont from mac_house_master where house_number = '"+housenumber+"'")
+		long count = result.cont
+		result = count
+		*/
+		
+		def result = sql.eachRow("select count (*) from mac_house_master where house_number = '"+housenumber+"'")
+		{
+	
+		}
+		log.info "Closing sql connection"
+		//close the connnection
+		sql.close()
+		return (result)
+	}
+
+	def DynamicWaitHouse(result, housenumber) {
+		log.info "Entering Dynamic Wait"
+		def myTestCase = this.context.testCase //myTestCase contains the test case
+		def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+		def propTestStep = myTestCase.getTestStepByName("Property - Looper") // get the Property TestStep
+		def dbmirroring = null;
+		propTestStep.setPropertyValue("DBMirroring", dbmirroring)
+		// Search for House Number in QHASTAGE
+		for (int i=0; i&lt;1000; i++){		
+			sleep(1000)
+			if (result!=0){
+				log.info ("House Number is " + housenumber)
+				break;
+			}
+			log.info(i)
+			if (i==999){
+				dbmirroring = "DB Mirroring issue - House Number: "+housenumber+" not found in DB"
+				propTestStep.setPropertyValue("DBMirroring", dbmirroring) //the value is saved in the property
+			}
+		}
+	}
+}
+context.setProperty( "tclib", new TCLib( log, context, testRunner) )
+
+</script></con:config></con:testStep><con:testStep type="groovy" name="SerLib" id="8cb6ff48-e9fb-4f3e-b0fd-f8a27c6ebfbc"><con:settings/><con:config><script>import com.eviware.soapui.support.XmlHolder
+import groovy.sql.Sql
+import jxl.*
+import jxl.write.*
+import groovy.util.Eval
+
+class SerLib {
+	def log
+	def context
+	def testRunner
+	def SerLib(logIn, contextIn, testRunnerIn) {
+		this.log = logIn
+		this.context = contextIn
+		this.testRunner = testRunnerIn
+	}
+	def execute() {
+		log.info "inside"
+		def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+		def myTestCase = this.context.testCase
+		log.info (myTestCase)
+		def folder = new File ("C:\\SoapUIProjects\\serviceability\\Data")
+		def path = null;
+		//Input file
+		if( !folder.exists()) {
+			path = "Data/Input.xls"
+			log.info "Relative Path"
+			log.info (path)
+			return (path)
+		}
+		else {
+			path = "C:\\SoapUIProjects\\serviceability\\Data\\Input.xls";
+			log.info ("System Path")
+			log.info (path)
+			return (path)
+		}
+	}
+
+	def HouseNumberResult(housenumber,site) {
+		log.info "Querying Database for House Number"
+		//Eval.me(housenumber).toString()
+		def sql = Sql.newInstance("jdbc:oracle:thin:wes_wm_soa/wes_wm_soa@(DESCRIPTION_LIST=(LOAD_BALANCE=off)(FAILOVER=on)(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke1.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD)))(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke2.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD))))")
+		/*
+		 def result = sql.firstRow("select count (*) as cont from mac_house_master where house_number = '"+housenumber+"'")
+		long count = result.cont
+		result = count
+		*/
+		//def site = "mac"
+		def result = sql.firstRow("select * from "+site+"_house_master where house_number = '"+housenumber+"'")
+		log.info "Closing sql connection"
+		//close the connnection
+		sql.close()
+		return (result)
+	}
+}
+context.setProperty( "serlib", new SerLib( log, context, testRunner) )
+
+</script></con:config></con:testStep><con:testStep type="groovy" name="Util" id="194a6464-c98c-49cb-815e-0f71fb67a9a6"><con:settings/><con:config><script>import com.eviware.soapui.support.XmlHolder
+import groovy.sql.Sql
+import jxl.*
+import jxl.write.*
+import groovy.util.Eval
+
+class Util {
+	def log
+	def context
+	def testRunner
+	def Util(logIn, contextIn, testRunnerIn) {
+		this.log = logIn
+		this.context = contextIn
+		this.testRunner = testRunnerIn
+	}
+	def execute() {
+		log.info "inside"
+		def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+		def myTestCase = this.context.testCase
+		log.info (myTestCase)
+		def folder = new File ("C:\\SoapUIProjects\\ecare1-poc\\Data")
+		def path = null;
+		//Input file
+		if( !folder.exists()) {
+			path = "Data/Input.xls"
+			log.info "Relative Path"
+			log.info (path)
+			return (path)
+		}
+		else {
+			path = "C:\\SoapUIProjects\\ecare1-poc\\Data\\Input.xls";
+			log.info ("System Path")
+			log.info (path)
+			return (path)
+		}
+	}
+
+	def HouseNumber() {
+		log.info "Finding House Number"
+		def myTestCase = this.context.testCase //myTestCase contains the test case
+		def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+		def response = this.context.expand( '${createHouseMasterRecord#Response}' )
+		def response_holder = groovyUtils.getXmlHolder(response)
+		def housestatus=response_holder.getNodeValue("//ResponseHeader//status")
+		def housenumber=response_holder.getNodeValue("//createHouseRecordOut//HouseNumber")
+		log.info("House Status is "+housestatus)
+		log.info "Returning House Number"
+		return (housenumber)
+	}
+
+	def HouseNumberResult(housenumber) {
+		log.info "Querying Database for House Number"
+		//Eval.me(housenumber).toString()
+		def sql = Sql.newInstance("jdbc:oracle:thin:wes_wm_soa/wes_wm_soa@(DESCRIPTION_LIST=(LOAD_BALANCE=off)(FAILOVER=on)(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke1.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD)))(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke2.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD))))")
+		/*
+		 def result = sql.firstRow("select count (*) as cont from mac_house_master where house_number = '"+housenumber+"'")
+		long count = result.cont
+		result = count
+		*/
+		
+		def result = sql.eachRow("select count (*) from mac_house_master where house_number = '"+housenumber+"'")
+		{
+	
+		}
+		log.info "Closing sql connection"
+		//close the connnection
+		sql.close()
+		return (result)
+	}
+
+	def DynamicWaitHouse(result, housenumber) {
+		log.info "Entering Dynamic Wait"
+		def myTestCase = this.context.testCase //myTestCase contains the test case
+		def groovyUtils  = new com.eviware.soapui.support.GroovyUtils(context)
+		def propTestStep = myTestCase.getTestStepByName("Property - Looper") // get the Property TestStep
+		def dbmirroring = null;
+		propTestStep.setPropertyValue("DBMirroring", dbmirroring)
+		// Search for House Number in QHASTAGE
+		for (int i=0; i&lt;1000; i++){		
+			sleep(1000)
+			if (result!=0){
+				log.info ("House Number is " + housenumber)
+				break;
+			}
+			log.info(i)
+			if (i==999){
+				dbmirroring = "DB Mirroring issue - House Number: "+housenumber+" not found in DB"
+				propTestStep.setPropertyValue("DBMirroring", dbmirroring) //the value is saved in the property
+			}
+		}
+	}
+}
+context.setProperty( "util", new Util( log, context, testRunner) )
+
+</script></con:config></con:testStep><con:testStep type="groovy" name="Report" id="cef06f07-4950-42b9-8e36-4ef694c84c9a"><con:settings/><con:config><script>import com.eviware.soapui.support.XmlHolder
+import groovy.sql.Sql
+import jxl.*
+import jxl.write.*
+import groovy.util.Eval
+
+class Report{
+	def log
+	def context
+	def testRunner
+	def Report(logIn, contextIn, testRunnerIn) {
+		this.log = logIn
+		this.context = contextIn
+		this.testRunner = testRunnerIn
+	}
+	//From Result script for reporting......................
+	def reportingFromResult(def successCount,def failureCount,def jobName,def jobId){	
+		def sql=connection();
+		boolean status=false;	
+		if(sql!=null){
+		try{
+			sql.execute("update SelfSrv_Reporting set AccountsCreated='"+successCount+"', SuccessCount = '"+successCount+"',  FailureCount = '"+failureCount+"' where JenkinsJobName='"+jobName+"' and JenkinsJobID='"+jobId+"'")
+			status=true;
+		}catch(Exception e){
+			log.info e;
+			status=false;
+		}finally{
+			sql.close();
+		}
+		return status;
+	}else{
+		status=false;
+		return status
+	}	
+}
+	//SQL Connection.....................
+	def connection(){
+	def sql=null;
+	sql =Sql.newInstance("jdbc:sqlserver://catl0db728\\intcciprod;Database=TDMDB","TDS_USER","PTFLxERyTUYuPky6rc01","com.microsoft.sqlserver.jdbc.SQLServerDriver");
+	return sql;
+	}
+
+	//From Loop script for reporting.........................
+	def reportingAtEnd(def endDate,def jobName,def jobId){
+		def sql=connection();
+		boolean status=false;	
+		if(sql!=null){
+		try{
+			log.info "Testing123";
+			sql.execute("update SelfSrv_Reporting set EndTime = '"+endDate+"' where JenkinsJobName='"+jobName+"' and JenkinsJobID='"+jobId+"'")
+			status=true;
+		}catch(Exception e){
+			log.info e;
+			status=false;
+		}finally{
+			sql.close();
+		}
+		return status;
+	}else{
+		status=false;
+		return status
+	}	
+	}
+	//From GetJenkinsVariables for reporting..................
+	def reportAtBegining(def jobName,def jobId){
+		def sql=connection();
+		def reportingId=null;	
+		if(sql!=null){
+		try{
+			
+			reportingId=sql.firstRow("select ReportingId from dbo.SelfSrv_Reporting where JenkinsJobName ='"+jobName+"' and JenkinsJobID ='"+jobId+"' ");
+			if(reportingId!=null){
+				reportingId=reportingId[0];
+			}else{
+				reportingId=null;
+			}
+			
+		}catch(Exception e){
+			log.info e;	
+		}finally{
+			sql.close();
+		}
+		return reportingId;
+	}else{
+		
+		return reportingId
+	}
+	}	
+
+	//From GetJenkinsVariables for reporting..................
+	def insertIfReportIdNull(def jobName,def jobId,def scenario,def requestor,def successCount,def startDate,def failureCount){
+		def sql=connection();
+		boolean status=false;	
+		if(sql!=null){
+		try{
+			sql.execute("INSERT INTO dbo.SelfSrv_Reporting (JenkinsJobName, JenkinsJobID, JenkinsScenario, Requestor, AccountsCreated, AccountsModified, StartTime, EndTime, SuccessCount, FailureCount) VALUES ('"+jobName+"', '"+jobId+"', '"+scenario+"', '"+requestor+"', '"+successCount+"', 0, '"+startDate+"', '', "+successCount+", "+failureCount+")")
+			status=true;
+		}catch(Exception e){
+			log.info e;
+			status=false;
+		}finally{
+			sql.close();
+		}
+		return status;
+	}else{
+		status=false;
+		return status
+	}
+}
+	//From GetJenkinsVariables for reporting to get Success count..................
+	def getSuccessCount(def jobName,def jobId){
+		def sql=connection();
+		def successCount=null;	
+		if(sql!=null){
+		try{
+			
+			successCount =  sql.firstRow("select SuccessCount from dbo.SelfSrv_Reporting where JenkinsJobName ='"+jobName+"' and JenkinsJobID ='"+jobId+"' ");
+			successCount=successCount[0];
+		}catch(Exception e){
+			log.info e;	
+		}finally{
+			sql.close();
+		}
+		return successCount;
+	}else{
+		
+		return successCount
+	}
+	}
+	//From GetJenkinsVariables for reporting to get Failure count..................
+	def getFailureCount(def jobName,def jobId){
+		def sql=connection();
+		def failureCount=null;	
+		if(sql!=null){
+		try{
+			
+			failureCount = sql.firstRow("select FailureCount from dbo.SelfSrv_Reporting where JenkinsJobName ='"+jobName+"' and JenkinsJobID ='"+jobId+"' ");
+			failureCount=failureCount[0];
+		}catch(Exception e){
+			log.info e;	
+		}finally{
+			sql.close();
+		}
+		return failureCount;
+	}else{
+		
+		return failureCount
+	}
+	}
+
+}
+context.setProperty( "report", new Report( log, context, testRunner) )</script></con:config></con:testStep><con:testStep type="groovy" name="Connections" id="f7cf52e7-16fb-4f57-827a-9b0788279149"><con:settings/><con:config><script>import com.eviware.soapui.support.XmlHolder
+import groovy.sql.Sql
+import jxl.*
+import jxl.write.*
+import groovy.util.Eval
+
+class Connections{
+	def log
+	def context
+	def testRunner
+	def Connections(logIn, contextIn, testRunnerIn) {
+		this.log = logIn
+		this.context = contextIn
+		this.testRunner = testRunnerIn
+	}
+
+	def getDBConnection(def db){
+		try{
+			def sql=null;
+			com.eviware.soapui.support.GroovyUtils.registerJdbcDriver("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+			if(db.equals("Sql")){
+				sql =Sql.newInstance("jdbc:sqlserver://catl0db791\\intccistg;Database=TDMDB","TDS_USER","0frDCrfTpMUi7pCISeuC","com.microsoft.sqlserver.jdbc.SQLServerDriver")
+			}else if(db.equals("Report")){
+				sql =Sql.newInstance("jdbc:sqlserver://catl0db728\\intcciprod;Database=TDMDB","TDS_USER","PTFLxERyTUYuPky6rc01","com.microsoft.sqlserver.jdbc.SQLServerDriver")
+			}else if(db.equals("Oracle")){
+				sql = Sql.newInstance("jdbc:oracle:thin:CRM/CRM@(DESCRIPTION_LIST=(LOAD_BALANCE=off)(FAILOVER=off)(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=off)(ADDRESS=(PROTOCOL=TCP)(HOST=dukeorpv38.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=RHASTAGE_GENERIC_APP.WORLD))))")
+			}else if(db.equals("QHASTAGE")){
+				sql = Sql.newInstance("jdbc:oracle:thin:wes_wm_soa/wes_wm_soa@(DESCRIPTION_LIST=(LOAD_BALANCE=off)(FAILOVER=on)(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke1.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD)))(DESCRIPTION=(CONNECT_TIMEOUT=5)(TRANSPORT_CONNECT_TIMEOUT=3)(RETRY_COUNT=3)(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=xhastage-duke2.corp.cox.com)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=QHASTAGE_GENERIC_APP.WORLD))))")
+			}
+			return sql;
+		}catch(Exception e){
+			log.info "Exception is: "+e;
+			return null;
+		}
+	}
+
+	def getPath(String name){
+		def folder =  new File ("C:\\SoapUIProjects\\"+name+"\\Data")
+		log.info (folder)
+		def path = null;
+		// If it doesn't exist
+		if( !folder.exists() ) {
+			// Use Relative path
+			path = "Data/Input.xlsx";
+			log.info ("Relative Path")
+			log.info (path)
+		}
+		else {
+			path = "C:\\SoapUIProjects\\"+name+"\\Data\\Input.xlsx";
+			log.info ("System Path")
+			log.info (path)
+		}
+		return path;
+	}
+}
+context.setProperty( "connections", new Connections( log, context, testRunner) )</script></con:config></con:testStep><con:testStep type="groovy" name="MapSite" id="f48e73ae-e829-457f-ae47-2491cbbe5d43"><con:settings/><con:config><script>import com.eviware.soapui.support.XmlHolder
+import groovy.sql.Sql
+import jxl.*
+import jxl.write.*
+import groovy.util.Eval
+/*
+ * Description : Mapping site ID based on site code..
+ */
+class Site{
+	def log
+	def context
+	def testRunner
+	def Site(logIn, contextIn, testRunnerIn) {
+		this.log = logIn
+		this.context = contextIn
+		this.testRunner = testRunnerIn
+	}
+	//Map site ID based on siteCode starts here......
+	def setSiteValue(String siteCode){
+
+		def propTestStep=this.testRunner.testCase.getTestStepByName("Property - Looper");
+		switch(siteCode){
+			case "TUL": propTestStep.setPropertyValue("Site", "186"); //the value is saved in the property
+						break;
+			case "CLE": propTestStep.setPropertyValue("Site", "609"); //the value is saved in the property
+						break;
+			case "MAC": propTestStep.setPropertyValue("Site", "001"); //the value is saved in the property
+						break;
+			case "CON": propTestStep.setPropertyValue("Site", "216"); //the value is saved in the property
+						break;
+			case "GAN": propTestStep.setPropertyValue("Site", "214"); //the value is saved in the property
+						break;
+			case "HRD": propTestStep.setPropertyValue("Site", "215"); //the value is saved in the property
+						break;
+			case "NVA": propTestStep.setPropertyValue("Site", "477"); //the value is saved in the property
+						break;
+			case "RHI": propTestStep.setPropertyValue("Site", "238"); //the value is saved in the property
+						break;
+			case "ROA": propTestStep.setPropertyValue("Site", "239"); //the value is saved in the property
+						break;
+			case "PAL": propTestStep.setPropertyValue("Site", "334"); //the value is saved in the property
+						break;
+			case "LAS": propTestStep.setPropertyValue("Site", "476"); //the value is saved in the property
+						break;
+			case "PHX": propTestStep.setPropertyValue("Site", "436"); //the value is saved in the property
+						break;
+			case "ORG": propTestStep.setPropertyValue("Site", "333"); //the value is saved in the property
+						break;
+			case "SAB": propTestStep.setPropertyValue("Site", "342"); //the value is saved in the property
+						break;
+			case "OKC": propTestStep.setPropertyValue("Site", "131"); //the value is saved in the property
+						break;
+			case "SAN": propTestStep.setPropertyValue("Site", "541"); //the value is saved in the property
+						break;
+			case "LOU": propTestStep.setPropertyValue("Site", "126"); //the value is saved in the property
+						break;
+			case "KAN": propTestStep.setPropertyValue("Site", "580"); //the value is saved in the property
+						break;
+			case "BTR": propTestStep.setPropertyValue("Site", "182"); //the value is saved in the property
+						break;
+			case "OMA": propTestStep.setPropertyValue("Site", "132"); //the value is saved in the property
+						break;
+			case "PEN": propTestStep.setPropertyValue("Site", "135"); //the value is saved in the property
+						break;
+			case "CLE": propTestStep.setPropertyValue("Site", "609"); //the value is saved in the property
+						break;
+			default : 	propTestStep.setPropertyValue("Site", "001"); //the value is saved in the property
+						break;
+		}
+	}
+	//Map site ID based on siteCode ends here......
+}
+context.setProperty( "site", new Site( log, context, testRunner) )</script></con:config></con:testStep><con:properties/></con:testCase><con:properties/></con:testSuite><con:properties/><con:wssContainer/><con:oAuth2ProfileContainer/><con:oAuth1ProfileContainer/><con:sensitiveInformation/></con:soapui-project>
